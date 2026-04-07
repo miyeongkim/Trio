@@ -45,3 +45,7 @@
 	path = MedtrumKit
 	branch = dev
 	url = https://github.com/loopandlearn/MedtrumKit
+[submodule "DiaconnKit"]
+	path = DiaconnKit
+	url = git@github-miyeongkim:miyeongkim/DiaconnKit.git
+	branch = main
