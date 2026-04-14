@@ -219,7 +219,10 @@ extension Onboarding {
         var rewindResetsAutosens: Bool = true
 
         var filteredAutosensSettingsSubsteps: [AutosensSettingsSubstep] {
-            if pumpOptionForOnboardingUnits == .dana || pumpOptionForOnboardingUnits == .diaconn || pumpOptionForOnboardingUnits == .minimed {
+            if pumpOptionForOnboardingUnits == .dana || pumpOptionForOnboardingUnits == .diaconn ||
+                pumpOptionForOnboardingUnits ==
+                .minimed
+            {
                 return AutosensSettingsSubstep.allCases
             } else {
                 return [AutosensSettingsSubstep.autosensMin, AutosensSettingsSubstep.autosensMax]

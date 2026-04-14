@@ -137,6 +137,7 @@ extension PumpConfig {
                     Button("Omnipod Eros") { state.addPump(.omnipod) }
                     Button("Omnipod DASH") { state.addPump(.omnipodBLE) }
                     Button("Dana(RS/-i)") { state.addPump(.dana) }
+                    Button("Diaconn G8") { state.addPump(.diaconn) }
                     Button("Medtrum Nano") { state.addPump(.medtrum) }
                     Button("Pump Simulator") { state.addPump(.simulator) }
                 } message: { Text("Select Pump Model") }
