@@ -1,5 +1,6 @@
 import Combine
 import DanaKit
+import DiaconnKit
 import FirebaseCrashlytics
 import Foundation
 import LoopKit
@@ -125,6 +126,8 @@ extension Onboarding {
                         defaultOption = .medtrum
                     } else if pumpManager is DanaKitPumpManager {
                         defaultOption = .dana
+                    } else if pumpManager is DiaconnPumpManager {
+                        defaultOption = .diaconn
                     } else if pumpManager is MinimedPumpManager {
                         defaultOption = .minimed
                     } else {
@@ -162,6 +165,8 @@ extension Onboarding {
             switch selectedPumpOption {
             case .dana:
                 return PickerSetting(value: 0.1, step: 0.05, min: 0, max: 3, type: .insulinUnitPerHour)
+            case .diaconn:
+                return PickerSetting(value: 0.1, step: 0.05, min: 0, max: 15, type: .insulinUnitPerHour)
             case .minimed:
                 return PickerSetting(value: 0.1, step: 0.05, min: 0, max: 35, type: .insulinUnitPerHour)
             case .omnipodDash:
@@ -214,7 +219,7 @@ extension Onboarding {
         var rewindResetsAutosens: Bool = true
 
         var filteredAutosensSettingsSubsteps: [AutosensSettingsSubstep] {
-            if pumpOptionForOnboardingUnits == .minimed || pumpOptionForOnboardingUnits == .dana {
+            if pumpOptionForOnboardingUnits == .dana || pumpOptionForOnboardingUnits == .diaconn || pumpOptionForOnboardingUnits == .minimed {
                 return AutosensSettingsSubstep.allCases
             } else {
                 return [AutosensSettingsSubstep.autosensMin, AutosensSettingsSubstep.autosensMax]

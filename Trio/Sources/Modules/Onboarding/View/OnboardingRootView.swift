@@ -605,6 +605,7 @@ struct OnboardingNavigationButtons: View {
 
                 switch state.pumpOptionForOnboardingUnits {
                 case .dana,
+                     .diaconn,
                      .minimed:
                     currentAutosensSubstep = .rewindResetsAutosens
                 case .medtrum,

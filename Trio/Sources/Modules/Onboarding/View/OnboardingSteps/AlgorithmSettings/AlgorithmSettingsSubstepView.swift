@@ -19,6 +19,7 @@ struct AlgorithmSettingsSubstepView<Substep: AlgorithmSubstepProtocol & RawRepre
     private var shouldDisableRewindResetsAutosens: Bool {
         switch state.pumpOptionForOnboardingUnits {
         case .dana,
+             .diaconn,
              .minimed:
             return false
         case .medtrum,
