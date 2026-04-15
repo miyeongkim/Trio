@@ -17,6 +17,7 @@ protocol APSManager {
     var lastLoopDate: Date { get }
     var lastLoopDateSubject: PassthroughSubject<Date, Never> { get }
     var bolusProgress: CurrentValueSubject<Decimal?, Never> { get }
+    var currentBolusTotal: CurrentValueSubject<Decimal?, Never> { get }
     var pumpExpiresAtDate: CurrentValueSubject<Date?, Never> { get }
     var pumpActivatedAtDate: CurrentValueSubject<Date?, Never> { get }
     var isManualTempBasal: Bool { get }
@@ -117,6 +118,7 @@ final class BaseAPSManager: APSManager, Injectable {
     let iobFileDidUpdate = PassthroughSubject<Void, Never>()
 
     let bolusProgress = CurrentValueSubject<Decimal?, Never>(nil)
+    let currentBolusTotal = CurrentValueSubject<Decimal?, Never>(nil)
 
     var pumpDisplayState: CurrentValueSubject<PumpDisplayState?, Never> {
         deviceDataManager.pumpDisplayState
@@ -1216,6 +1218,7 @@ final class BaseAPSManager: APSManager, Injectable {
         bolusReporter = nil
         processQueue.asyncAfter(deadline: .now() + 0.5) {
             self.bolusProgress.send(nil)
+            self.currentBolusTotal.send(nil)
         }
     }
 }
@@ -1332,8 +1335,12 @@ extension BaseAPSManager: PumpManagerStatusObserver {
 
 extension BaseAPSManager: DoseProgressObserver {
     func doseProgressReporterDidUpdate(_ doseProgressReporter: DoseProgressReporter) {
-        bolusProgress.send(Decimal(doseProgressReporter.progress.percentComplete))
-        if doseProgressReporter.progress.isComplete {
+        let progress = doseProgressReporter.progress
+        bolusProgress.send(Decimal(progress.percentComplete))
+        if progress.percentComplete > 0 {
+            currentBolusTotal.send(Decimal(progress.deliveredUnits / progress.percentComplete))
+        }
+        if progress.isComplete {
             clearBolusReporter()
         }
     }

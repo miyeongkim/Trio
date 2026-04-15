@@ -798,8 +798,8 @@ extension Home {
             /// ensure that state.lastPumpBolus has a value, i.e. there is a last bolus done by the pump and not an external bolus
             /// - TRUE:  show the pump bolus
             /// - FALSE:  do not show a progress bar at all
-            if let bolusTotal = state.lastPumpBolus?.bolus?.amount {
-                let bolusFraction = progress * (bolusTotal as Decimal)
+            if let bolusTotal = state.currentBolusTotal ?? (state.lastPumpBolus?.bolus?.amount as Decimal?) {
+                let bolusFraction = progress * bolusTotal
                 let bolusString =
                     (bolusProgressFormatter.string(from: bolusFraction as NSNumber) ?? "0")
                         + String(localized: " of ", comment: "Bolus string partial message: 'x U of y U' in home view") +
