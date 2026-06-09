@@ -38,3 +38,6 @@
 	path = DiaconnKit
 	url = git@github-miyeongkim:miyeongkim/DiaconnKit.git
 	branch = main
+[submodule "OmnipodKit"]
+	path = OmnipodKit
+	url = https://github.com/loopandlearn/OmnipodKit
