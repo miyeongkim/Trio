@@ -554,7 +554,7 @@ enum PumpOptionForOnboardingUnits: String, Equatable, CaseIterable, Identifiable
         case .minimed:
             return "Medtronic"
         case .omni:
-            return "All Omnipod Types"
+            return "Omnipod"
         case .dana:
             return "Dana (RS/-i)"
         case .diaconn:
