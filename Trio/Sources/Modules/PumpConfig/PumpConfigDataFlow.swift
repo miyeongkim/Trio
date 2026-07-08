@@ -20,6 +20,7 @@ enum PumpConfig {
             case .minimed: return "Minimed"
             case .omni: return "Omni"
             case .dana: return "Dana"
+            case .diaconn: return "DiaconnG8"
             case .medtrum: return "Medtrum"
             case .simulator: return nil
             }
