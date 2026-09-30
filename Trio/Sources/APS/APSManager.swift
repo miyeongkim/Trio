@@ -22,6 +22,9 @@ protocol APSManager {
     var lastLoopDate: Date { get }
     var lastLoopDateSubject: PassthroughSubject<Date, Never> { get }
     var bolusProgress: CurrentValueSubject<Decimal?, Never> { get }
+    /// Total of the bolus in progress, set only for pumps that report boluses after delivery
+    /// (`PumpCatalogEntry.reportsBolusAfterDelivery`). Nil otherwise.
+    var bolusInProgressTotal: CurrentValueSubject<Decimal?, Never> { get }
     var pumpExpiresAtDate: CurrentValueSubject<Date?, Never> { get }
     var pumpActivatedAtDate: CurrentValueSubject<Date?, Never> { get }
     var isManualTempBasal: Bool { get }
@@ -172,6 +175,7 @@ final class BaseAPSManager: APSManager, Injectable {
     let iobFileDidUpdate = PassthroughSubject<Void, Never>()
 
     let bolusProgress = CurrentValueSubject<Decimal?, Never>(nil)
+    let bolusInProgressTotal = CurrentValueSubject<Decimal?, Never>(nil)
 
     var pumpDisplayState: CurrentValueSubject<PumpDisplayState?, Never> {
         deviceDataManager.pumpDisplayState
@@ -672,6 +676,9 @@ final class BaseAPSManager: APSManager, Injectable {
         do {
             try await pump.enactBolus(units: roundedAmount, automatic: isSMB)
             info(.bolus, "Bolus enacted: \(roundedAmount) U, \(isSMB ? "automatic" : "manual")")
+            if DeviceCatalog.pumpEntry(id: pump.pluginIdentifier)?.reportsBolusAfterDelivery == true {
+                bolusInProgressTotal.send(Decimal(roundedAmount))
+            }
             bolusProgress.send(0)
             callback?(true, String(localized: "Bolus enacted successfully.", comment: "Success message for enacting a bolus"))
             if !isSMB {
@@ -1430,6 +1437,7 @@ final class BaseAPSManager: APSManager, Injectable {
             self.bolusReporter?.removeObserver(self)
             self.bolusReporter = nil
             self.bolusProgress.send(nil)
+            self.bolusInProgressTotal.send(nil)
         }
     }
 }

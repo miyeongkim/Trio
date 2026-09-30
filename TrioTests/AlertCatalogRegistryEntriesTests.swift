@@ -27,6 +27,7 @@ import Testing
             ("Dana", "shutdown"),
             ("Dana", "emptyReservoir"),
             ("Dana", "checkShaft"),
+            ("DiaconnG8", "occlusion"),
             // Both spellings are registered: MedtrumKit ships the misspelled
             // "patch-occlussion" (double-s) today; "patch-occlusion" is
             // forward-compat for when the upstream typo is fixed. Both escalate.
@@ -49,6 +50,8 @@ import Testing
             ("Minimed", "PumpBatteryLow"),
             ("Dana", "lowBattery"),
             ("Dana", "unknown"),
+            ("DiaconnG8", "insulinLack"),
+            ("DiaconnG8", "lowBattery"),
             ("Medtrum", "com.nightscout.medtrumkit.reservoir-low"),
             ("Medtrum", "com.nightscout.medtrumkit.patch-daily-limit"),
             ("LibreLoopCGMManager", "sensorExpiry.warning24h"),

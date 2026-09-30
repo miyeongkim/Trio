@@ -12,7 +12,7 @@ import LoopKit
 /// construction and don't need a catalog entry.
 enum AlertCatalogRegistry {
     static let entries: [Alert.CatalogEntry] =
-        omniEntries + minimedEntries + danaEntries + medtrumEntries + libreLoopEntries + g7Entries
+        omniEntries + minimedEntries + danaEntries + diaconnEntries + medtrumEntries + libreLoopEntries + g7Entries
             + syaiEntries + trioAlgorithmEntries + tidepoolEntries
 
     static func lookup(_ identifier: Alert.Identifier) -> Alert.CatalogEntry? {
@@ -131,6 +131,18 @@ private extension AlertCatalogRegistry {
         addEntry("Dana", "bloodSugarCheckMiss", .active, "Missed Blood Glucose Check", "Reminders", .userBloodGlucoseReminder),
         addEntry("Dana", "ble5InvalidKeys", .timeSensitive, "Pairing Failed", "Connectivity", .pairingFailed),
         addEntry("Dana", "unknown", .timeSensitive, "Unknown Pump Error", "Hardware", .hardwareFault)
+    ]
+}
+
+// MARK: - Diaconn (G8)
+
+private extension AlertCatalogRegistry {
+    /// Manager identifier matches `DiaconnPumpManager.managerIdentifier`.
+    /// Alert identifiers come from `DiaconnPumpManagerAlert.identifier`.
+    static let diaconnEntries: [Alert.CatalogEntry] = [
+        addEntry("DiaconnG8", "occlusion", .critical, "Occlusion", "Delivery", .occlusion),
+        addEntry("DiaconnG8", "insulinLack", .timeSensitive, "Low Insulin", "Reservoir", .reservoirLow),
+        addEntry("DiaconnG8", "lowBattery", .timeSensitive, "Low Pump Battery", "Battery", .pumpBatteryLow)
     ]
 }
 

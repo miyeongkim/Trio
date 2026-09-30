@@ -103,7 +103,7 @@ final class BaseDeviceDataManager: DeviceDataManager, Injectable {
 
                 var modifiedPreferences = settingsManager.preferences
                 let bolusIncrement = Decimal(
-                    pumpManager.supportedBolusVolumes.first ??
+                    DeviceCatalog.bolusIncrement(for: pumpManager) ??
                         Double(
                             settingsManager.preferences
                                 .bolusIncrement

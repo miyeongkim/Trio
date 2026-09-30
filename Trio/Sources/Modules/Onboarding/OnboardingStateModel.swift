@@ -777,7 +777,7 @@ extension Onboarding {
             // ensure correct bolusIncrement is set, if user is onboarding with paired pump
             if let pumpManager = apsManager?.pumpManager {
                 let bolusIncrement = Decimal(
-                    pumpManager.supportedBolusVolumes.first ??
+                    DeviceCatalog.bolusIncrement(for: pumpManager) ??
                         Double(
                             settingsManager.preferences
                                 .bolusIncrement

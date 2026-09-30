@@ -1,4 +1,5 @@
 import DanaKit
+import DiaconnKit
 import Foundation
 import LoopKitUI
 import MachO
@@ -40,6 +41,7 @@ import UIKit
             "MinimedPumpManager": "Minimed500",
             "MedtrumPumpManager": "Medtrum",
             "DanaKitPumpManager": "Dana",
+            "DiaconnPumpManager": "DiaconnG8",
             "MockPumpManager": "MockPumpManager"
         ]
         for entry in DeviceCatalog.pumps {
@@ -274,6 +276,7 @@ import UIKit
             "MiniMed": BasalRateCapability(minimum: 0.05, maximum: 35, step: 0.05),
             // Dana delivers in 0.01 steps; Trio previously offered 0.05.
             "Dana": BasalRateCapability(minimum: 0.01, maximum: 3, step: 0.01),
+            "Diaconn G8": BasalRateCapability(minimum: 0.01, maximum: 3, step: 0.01),
             "Medtrum Nano": BasalRateCapability(minimum: 0.05, maximum: 30, step: 0.05)
         ]
         for (name, capability) in expected {
@@ -289,6 +292,7 @@ import UIKit
             "Omnipod": OmniPumpManager.onboardingSupportedBasalRates,
             "MiniMed": MinimedPumpManager.onboardingSupportedBasalRates,
             "Dana": DanaKitPumpManager.onboardingSupportedBasalRates,
+            "Diaconn G8": DiaconnPumpManager.onboardingSupportedBasalRates,
             "Medtrum Nano": MedtrumPumpManager.onboardingSupportedBasalRates
         ]
         for (name, grid) in grids {
@@ -299,6 +303,7 @@ import UIKit
     @Test("An upgrading user's paired pump is preselected") func testUpgradePreselection() {
         #expect(DeviceCatalog.onboardingPump(forPersistedIdentifier: "Minimed500").name == "MiniMed")
         #expect(DeviceCatalog.onboardingPump(forPersistedIdentifier: "Dana").name == "Dana")
+        #expect(DeviceCatalog.onboardingPump(forPersistedIdentifier: "DiaconnG8").name == "Diaconn G8")
         // Legacy identifiers from the retired OmniKit / OmniBLE managers.
         #expect(DeviceCatalog.onboardingPump(forPersistedIdentifier: "Omnipod-DASH").name == "Omnipod")
         // The simulator is catalogued but never offered in onboarding, so it must fall back rather than
@@ -307,9 +312,23 @@ import UIKit
         #expect(DeviceCatalog.onboardingPump(forPersistedIdentifier: "NotAPump").name == "Omnipod")
     }
 
+    @Test("Only Diaconn reports boluses after delivery") func testBolusAfterDeliveryReporting() {
+        // Every other pump reports a bolus when it starts, so its in-progress total comes from the stored bolus.
+        let reporting = DeviceCatalog.pumps.filter(\.reportsBolusAfterDelivery).map(\.id)
+        #expect(reporting == ["DiaconnG8"])
+    }
+
+    @Test("Only Diaconn overrides the bolus increment") func testBolusIncrementOverride() {
+        // Every other pump keeps using its smallest supported bolus as the step.
+        let overrides = DeviceCatalog.pumps.compactMap { entry in entry.bolusIncrement.map { (entry.id, $0) } }
+        #expect(overrides.count == 1)
+        #expect(overrides.first?.0 == "DiaconnG8")
+        #expect(overrides.first?.1 == 0.01)
+    }
+
     @Test("Only tubed pumps report a rewind") func testRewindReporting() {
         // rewindResetsAutosens is only meaningful for pumps with a reservoir to rewind.
-        let expected = ["Omnipod": false, "MiniMed": true, "Dana": true, "Medtrum Nano": false]
+        let expected = ["Omnipod": false, "MiniMed": true, "Dana": true, "Diaconn G8": true, "Medtrum Nano": false]
         for (name, reports) in expected {
             let entry = DeviceCatalog.pumps.first { $0.name == name }
             #expect(entry?.reportsRewindEvents == reports, "\(name) rewind behaviour changed")
