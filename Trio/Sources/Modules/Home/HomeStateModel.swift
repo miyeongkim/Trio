@@ -73,6 +73,7 @@ extension Home {
         var errorMessage: String?
         var errorDate: Date?
         var bolusProgress: Decimal?
+        var bolusInProgressTotal: Decimal?
         var eventualBG: Int?
         var units: GlucoseUnits = .mgdL
         var pumpDisplayState: PumpDisplayState?
@@ -679,6 +680,11 @@ extension Home {
             apsManager.bolusProgress
                 .receive(on: DispatchQueue.main)
                 .weakAssign(to: \.bolusProgress, on: self)
+                .store(in: &lifetime)
+
+            apsManager.bolusInProgressTotal
+                .receive(on: DispatchQueue.main)
+                .weakAssign(to: \.bolusInProgressTotal, on: self)
                 .store(in: &lifetime)
 
             apsManager.pumpDisplayState

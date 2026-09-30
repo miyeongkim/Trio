@@ -4,6 +4,7 @@ import AccuChekKit
 import CGMBLEKit
 import CGMBLEKitUI
 import DanaKit
+import DiaconnKit
 import EversenseKit
 import Foundation
 import G7SensorKit
@@ -41,6 +42,7 @@ enum DeviceCatalog {}
 enum DeviceManufacturer: CaseIterable {
     case abbott
     case dexcom
+    case g2e
     case insulet
     case medtronic
     case medtrum
@@ -56,6 +58,7 @@ enum DeviceManufacturer: CaseIterable {
         switch self {
         case .abbott: return "Abbott"
         case .dexcom: return "Dexcom"
+        case .g2e: return "G2e"
         case .insulet: return "Insulet"
         case .medtronic: return "Medtronic"
         case .medtrum: return "Medtrum"
@@ -309,6 +312,15 @@ struct PumpCatalogEntry: DeviceCatalogEntry {
     /// `rewindResetsAutosens` is meaningless for them and onboarding hides the question.
     let reportsRewindEvents: Bool
 
+    /// Whether the pump reports a bolus only after delivery (e.g. from its history log) rather than when the
+    /// bolus starts. For these pumps the last stored bolus is still the previous one while a new bolus runs, so
+    /// the in-progress total has to come from the enacted amount instead.
+    let reportsBolusAfterDelivery: Bool
+
+    /// Step for rounding stored boluses when the pump delivers finer than its smallest bolus. Nil rounds
+    /// to `Preferences.bolusIncrement` (the smallest supported bolus), which the algorithm keeps using either way.
+    let historyBolusIncrement: Decimal?
+
     var iconImage: UIImage? { icon.image(managerBundle: Bundle(for: manager)) }
     var fallbackSymbolName: String { "ivfluid.bag" }
     var isSelectableInPicker: Bool { true }
@@ -323,7 +335,9 @@ struct PumpCatalogEntry: DeviceCatalogEntry {
         legacyIdentifierPrefixes: [String] = [],
         allowedInsulinTypes: [InsulinType] = DeviceCatalog.defaultAllowedInsulinTypes,
         basalCapability: BasalRateCapability,
-        reportsRewindEvents: Bool
+        reportsRewindEvents: Bool,
+        reportsBolusAfterDelivery: Bool = false,
+        historyBolusIncrement: Decimal? = nil
     ) {
         self.manager = manager
         self.id = id
@@ -335,6 +349,8 @@ struct PumpCatalogEntry: DeviceCatalogEntry {
         self.allowedInsulinTypes = allowedInsulinTypes
         self.basalCapability = basalCapability
         self.reportsRewindEvents = reportsRewindEvents
+        self.reportsBolusAfterDelivery = reportsBolusAfterDelivery
+        self.historyBolusIncrement = historyBolusIncrement
     }
 
     static func == (lhs: PumpCatalogEntry, rhs: PumpCatalogEntry) -> Bool { lhs.id == rhs.id }
@@ -455,6 +471,18 @@ extension DeviceCatalog {
             icon: .managerBundle(asset: "danars"),
             basalCapability: BasalRateCapability(supportedRates: DanaKitPumpManager.onboardingSupportedBasalRates),
             reportsRewindEvents: true
+        ),
+        PumpCatalogEntry(
+            DiaconnPumpManager.self,
+            id: "DiaconnG8",
+            manufacturer: .g2e,
+            name: "Diaconn G8",
+            icon: .managerBundle(asset: "diacong8"),
+            basalCapability: BasalRateCapability(supportedRates: DiaconnPumpManager.onboardingSupportedBasalRates),
+            reportsRewindEvents: true,
+            reportsBolusAfterDelivery: true,
+            // Minimum bolus is 0.02 U, but the pump delivers in 0.01 U steps above it.
+            historyBolusIncrement: 0.01
         ),
         PumpCatalogEntry(
             MockPumpManager.self,

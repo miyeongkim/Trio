@@ -17,6 +17,9 @@
       location = "group:DanaKit/DanaKit.xcodeproj">
    </FileRef>
    <FileRef
+      location = "group:DiaconnKit/DiaconnKit.xcodeproj">
+   </FileRef>
+   <FileRef
       location = "group:MedtrumKit/MedtrumKit.xcodeproj">
    </FileRef>
    <FileRef

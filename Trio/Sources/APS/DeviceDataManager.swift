@@ -566,13 +566,14 @@ extension BaseDeviceDataManager: PumpManagerDelegate {
     }
 
     func pumpManager(
-        _: PumpManager,
+        _ pumpManager: PumpManager,
         hasNewPumpEvents events: [NewPumpEvent],
         lastReconciliation _: Date?,
         replacePendingEvents: Bool,
         completion: @escaping (_ error: Error?) -> Void
     ) {
         dispatchPrecondition(condition: .onQueue(processQueue))
+        let historyBolusIncrement = DeviceCatalog.pumpEntry(id: pumpManager.pluginIdentifier)?.historyBolusIncrement
 
         pumpEventsTask = Task { [previousBatch = pumpEventsTask] in
             await previousBatch?.value
@@ -586,7 +587,8 @@ extension BaseDeviceDataManager: PumpManagerDelegate {
                 debug(.pump, "Storing \(events.count) new pump events")
                 let purgedUploadedIds = try await pumpHistoryStorage.storePumpEvents(
                     events,
-                    replacePendingEvents: replacePendingEvents
+                    replacePendingEvents: replacePendingEvents,
+                    bolusIncrement: historyBolusIncrement
                 )
                 lastEventDate = events.last?.date
                 completion(nil)

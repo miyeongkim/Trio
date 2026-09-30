@@ -22,6 +22,9 @@ protocol APSManager {
     var lastLoopDate: Date { get }
     var lastLoopDateSubject: PassthroughSubject<Date, Never> { get }
     var bolusProgress: CurrentValueSubject<Decimal?, Never> { get }
+    /// Total of the bolus in progress, set only for pumps that report boluses after delivery
+    /// (`PumpCatalogEntry.reportsBolusAfterDelivery`). Nil otherwise.
+    var bolusInProgressTotal: CurrentValueSubject<Decimal?, Never> { get }
     var pumpExpiresAtDate: CurrentValueSubject<Date?, Never> { get }
     var pumpActivatedAtDate: CurrentValueSubject<Date?, Never> { get }
     var isManualTempBasal: Bool { get }
@@ -172,6 +175,7 @@ final class BaseAPSManager: APSManager, Injectable {
     let iobFileDidUpdate = PassthroughSubject<Void, Never>()
 
     let bolusProgress = CurrentValueSubject<Decimal?, Never>(nil)
+    let bolusInProgressTotal = CurrentValueSubject<Decimal?, Never>(nil)
 
     var pumpDisplayState: CurrentValueSubject<PumpDisplayState?, Never> {
         deviceDataManager.pumpDisplayState
@@ -636,6 +640,7 @@ final class BaseAPSManager: APSManager, Injectable {
         // Answer every caller: a silent return here left the watch waiting on "Processing…" forever
         guard amount > 0 else {
             warning(.bolus, "Bolus of \(amount) U not enacted, amount must be above 0")
+            notifyBolusDidFail()
             callback?(false, Self.invalidBolusAmountMessage)
             return
         }
@@ -643,18 +648,13 @@ final class BaseAPSManager: APSManager, Injectable {
         if let error = verifyStatus() {
             warning(.bolus, "Bolus of \(amount) U not enacted", error: error)
             processError(error)
-            // Capture broadcaster and queue before async context
-            let broadcaster = self.broadcaster
-            Task { @MainActor in
-                broadcaster?.notify(BolusFailureObserver.self, on: .main) {
-                    $0.bolusDidFail()
-                }
-            }
+            notifyBolusDidFail()
             callback?(false, String(localized: "Error! Failed to enact bolus.", comment: "Error message for enacting a bolus"))
             return
         }
 
         guard let pump = pumpManager else {
+            notifyBolusDidFail()
             callback?(false, String(localized: "Error! Failed to enact bolus.", comment: "Error message for enacting a bolus"))
             return
         }
@@ -663,12 +663,14 @@ final class BaseAPSManager: APSManager, Injectable {
 
         guard roundedAmount > 0 else {
             warning(.bolus, "Bolus of \(amount) U not enacted, rounds to 0 U on this pump")
+            notifyBolusDidFail()
             callback?(false, Self.invalidBolusAmountMessage)
             return
         }
 
         debug(.bolus, "Enacting bolus \(roundedAmount) U, \(isSMB ? "automatic" : "manual")")
 
+        publishBolusInProgressTotal(roundedAmount, on: pump)
         do {
             try await pump.enactBolus(units: roundedAmount, automatic: isSMB)
             info(.bolus, "Bolus enacted: \(roundedAmount) U, \(isSMB ? "automatic" : "manual")")
@@ -682,6 +684,7 @@ final class BaseAPSManager: APSManager, Injectable {
                 }
             }
         } catch let bolusError {
+            bolusInProgressTotal.send(nil)
             error(.bolus, "Bolus of \(roundedAmount) U failed", error: bolusError)
             lastError.send(APSError.pumpError(bolusError))
             issueAlertForCategory(
@@ -702,6 +705,18 @@ final class BaseAPSManager: APSManager, Injectable {
                 false,
                 String(localized: "Error! Bolus failed with error: \(bolusError.localizedDescription)")
             )
+        }
+    }
+
+    /// Every early return from `enactBolus` must call this: the Treatments screen keeps its
+    /// "Updating IOB" overlay up until it hears either a determination or a bolus failure.
+    private func notifyBolusDidFail() {
+        // Capture broadcaster before async context
+        let broadcaster = self.broadcaster
+        Task { @MainActor in
+            broadcaster?.notify(BolusFailureObserver.self, on: .main) {
+                $0.bolusDidFail()
+            }
         }
     }
 
@@ -847,8 +862,22 @@ final class BaseAPSManager: APSManager, Injectable {
     }
 
     private func performBolus(pump: PumpManager, smbToDeliver: NSDecimalNumber) async throws {
-        try await pump.enactBolus(units: smbToDeliver.decimalValue.nearestDouble, automatic: true)
+        let units = smbToDeliver.decimalValue.nearestDouble
+        publishBolusInProgressTotal(units, on: pump)
+        do {
+            try await pump.enactBolus(units: units, automatic: true)
+        } catch {
+            bolusInProgressTotal.send(nil)
+            throw error
+        }
         bolusProgress.send(0)
+    }
+
+    /// Set before enacting so a fast bolus that finishes before `enactBolus` returns cannot leave a stale total
+    /// behind after `clearBolusReporter` has cleared it.
+    private func publishBolusInProgressTotal(_ units: Double, on pump: PumpManager) {
+        guard DeviceCatalog.pumpEntry(id: pump.pluginIdentifier)?.reportsBolusAfterDelivery == true else { return }
+        bolusInProgressTotal.send(Decimal(units))
     }
 
     private func reportEnacted(wasEnacted: Bool) async {
@@ -1427,9 +1456,15 @@ final class BaseAPSManager: APSManager, Injectable {
 
     private func clearBolusReporter() {
         processQueue.async {
+            // Every pump status without a bolus lands here, including the ones a pump reports while connecting
+            // for a bolus that has not started yet. Only a bolus that actually ran clears its total.
+            let bolusDidRun = self.bolusReporter != nil
             self.bolusReporter?.removeObserver(self)
             self.bolusReporter = nil
             self.bolusProgress.send(nil)
+            if bolusDidRun {
+                self.bolusInProgressTotal.send(nil)
+            }
         }
     }
 }

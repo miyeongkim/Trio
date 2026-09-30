@@ -200,6 +200,7 @@ extension Treatments {
         typealias PumpEvent = PumpEventStored.EventType
 
         var bolusProgress: Decimal?
+        var bolusInProgressTotal: Decimal?
         var bolusStatus: BolusStatus = .noBolus
         var lastPumpBolus: PumpEventStored?
 
@@ -284,6 +285,11 @@ extension Treatments {
             apsManager.bolusProgress
                 .receive(on: DispatchQueue.main)
                 .weakAssign(to: \.bolusProgress, on: self)
+                .store(in: &lifetime)
+
+            apsManager.bolusInProgressTotal
+                .receive(on: DispatchQueue.main)
+                .weakAssign(to: \.bolusInProgressTotal, on: self)
                 .store(in: &lifetime)
 
             provider.deviceManager.bolusTrigger

@@ -14,11 +14,22 @@ protocol PumpHistoryStorage {
     func getPumpHistory() async throws -> [PumpHistoryEvent]
     /// Returns the ids of purged events that were already uploaded to NS,
     /// so the caller can delete the now-withdrawn treatments remotely.
-    @discardableResult func storePumpEvents(_ events: [NewPumpEvent], replacePendingEvents: Bool) async throws -> [String]
+    /// `bolusIncrement` overrides the step boluses are rounded to; nil uses `Preferences.bolusIncrement`.
+    @discardableResult func storePumpEvents(
+        _ events: [NewPumpEvent],
+        replacePendingEvents: Bool,
+        bolusIncrement: Decimal?
+    ) async throws -> [String]
     func storeExternalInsulinEvent(amount: Decimal, timestamp: Date) async
     func getPumpHistoryNotYetUploadedToNightscout() async throws -> [NightscoutTreatment]
     func getPumpHistoryNotYetUploadedToHealth() async throws -> [PumpHistoryEvent]
     func getPumpHistoryNotYetUploadedToTidepool() async throws -> [PumpHistoryEvent]
+}
+
+extension PumpHistoryStorage {
+    @discardableResult func storePumpEvents(_ events: [NewPumpEvent], replacePendingEvents: Bool) async throws -> [String] {
+        try await storePumpEvents(events, replacePendingEvents: replacePendingEvents, bolusIncrement: nil)
+    }
 }
 
 final class BasePumpHistoryStorage: PumpHistoryStorage, Injectable {
@@ -60,7 +71,12 @@ final class BasePumpHistoryStorage: PumpHistoryStorage, Injectable {
         ).map { Decimal($0) as NSDecimalNumber }
     }
 
-    @discardableResult func storePumpEvents(_ events: [NewPumpEvent], replacePendingEvents: Bool) async throws -> [String] {
+    @discardableResult func storePumpEvents(
+        _ events: [NewPumpEvent],
+        replacePendingEvents: Bool,
+        bolusIncrement: Decimal?
+    ) async throws -> [String] {
+        let bolusIncrement = Double(bolusIncrement ?? settings.preferences.bolusIncrement)
         let context = makeContext()
         context.name = "storePumpEvents"
         // on constraint conflicts the persisted row wins: finalized rows never change
@@ -119,7 +135,7 @@ final class BasePumpHistoryStorage: PumpHistoryStorage, Injectable {
                     assertedRows.insert(match.objectID)
                     // finalized rows never change
                     if match.isMutable, let dose = event.dose {
-                        self.updateMutablePumpEvent(match, with: dose)
+                        self.updateMutablePumpEvent(match, with: dose, bolusIncrement: bolusIncrement)
                     }
                     continue
                 }
@@ -148,11 +164,11 @@ final class BasePumpHistoryStorage: PumpHistoryStorage, Injectable {
                     newBolusEntry.pumpEvent = newPumpEvent
                     newBolusEntry.amount = NSDecimalNumber(decimal: self.roundDose(
                         dose.unitsInDeliverableIncrements,
-                        toIncrement: Double(self.settings.preferences.bolusIncrement)
+                        toIncrement: bolusIncrement
                     ))
                     newBolusEntry.programmedAmount = NSDecimalNumber(decimal: self.roundDose(
                         dose.programmedUnits,
-                        toIncrement: Double(self.settings.preferences.bolusIncrement)
+                        toIncrement: bolusIncrement
                     ))
                     newBolusEntry.isExternal = dose.manuallyEntered
                     newBolusEntry.isProgrammedByPumpUI = dose.wasProgrammedByPumpUI
@@ -245,14 +261,14 @@ final class BasePumpHistoryStorage: PumpHistoryStorage, Injectable {
     /// Finalized reports freeze the row with delivered values. If NS-visible
     /// values changed on an already-uploaded row, the upload flag resets and
     /// the re-POST replaces the NS document in place.
-    private func updateMutablePumpEvent(_ event: PumpEventStored, with dose: DoseEntry) {
+    private func updateMutablePumpEvent(_ event: PumpEventStored, with dose: DoseEntry, bolusIncrement: Double) {
         switch event.type {
         case PumpEventStored.EventType.bolus.rawValue:
             guard let bolus = event.bolus else { return }
             let previousAmount = bolus.amount
             let previousProgrammedByPumpUI = bolus.isProgrammedByPumpUI
             let finalAmount = dose.deliveredUnits.map {
-                self.roundDose($0, toIncrement: Double(settings.preferences.bolusIncrement))
+                self.roundDose($0, toIncrement: bolusIncrement)
             }
             if let finalAmount = finalAmount {
                 bolus.amount = finalAmount as NSDecimalNumber
